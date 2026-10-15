@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mars Base WebXR Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000000;
+            color: #ffffff;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 380px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #info.moving {
+            background: rgba(0, 80, 0, 0.9);
+            border-color: rgba(0, 255, 0, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
+        #info.vr-active {
+            background: rgba(80, 0, 80, 0.9);
+            border-color: rgba(255, 0, 255, 0.5);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+        }
+
+        #enter-vr {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 100;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #enter-vr:hover {
+            opacity: 1;
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
+        }
+
+        #enter-vr:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: #666;
+            transform: translateX(-50%) scale(1);
+            box-shadow: none;
+        }
+
+        .instructions {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            line-height: 1.6;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls-hint {
+            display: none;
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 100;
+            opacity: 0.9;
+        }
+
+        .vr-only {
+            display: none;
+        }
+
+        .debug-key {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-indicator.online { background: rgba(0, 100, 0, 0.7); }
+        .status-indicator.offline { background: rgba(100, 0, 0, 0.7); }
+        .status-indicator.warning { background: rgba(100, 100, 0, 0.7); }
+
+        h3 {
+            margin: 0 0 8px 0;
+            color: #ffd700;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h3::before {
+            content: "🚀";
+            font-size: 20px;
+        }
+
+        p {
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        p::before {
+            content: "▸";
+            font-size: 10px;
+            color: #4caf50;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Mars Base Explorer</h3>
+        <p>Initializing systems...</p>
+    </div>
+
+    <div class="instructions">
+        <h4>Controls:</h4>
+        <p>🖱️ Click & Drag: Look Around</p>
+        <p>🖱️ Scroll: Move Forward/Backward</p>
+        <p>⌨️ WASD / Arrow Keys: Move Left/Right/Forward/Backward</p>
+        <p>⌨️ Space: Jump Up • Shift: Sprint</p>
+        <p>🕶️ VR Button: Enter Immersive Mode (if supported)</p>
+    </div>
+
+    <div class="controls-hint">
+        <p>💡 Tip: Hold keys for continuous movement</p>
+    </div>
+
+    <div class="debug-key" id="debug-keys" style="display: none;">
+        Keys: <span id="keys-display">none</span>
+    </div>
+
+    <div class="status-indicator" id="vr-status" title="VR Support Status">● Checking...</div>
+
+    <button id="enter-vr" class="vr-only">Enter VR Experience</button>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Main application variables
+        let scene, camera, renderer, clock;
+        let controlsEnabled = false;
+        let isVRSession = false;
+        const keys = {
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+            KeyW: false, KeyS: false, KeyA: false, KeyD: false,
+            Space: false, ShiftLeft: false, ShiftRight: false
+        };
+
+        // Game objects
+        let player = null;
+        let terrain = null;
+        let habitatModule = null;
+        let rocket = null;
+        let ufo = null;
+        let moon = null;
+        let stars = null;
+        const habitatModules = [];
+        const rocks = [];
+
+        // UFO animation variables
+        let ufoTime = 0;
+        const ufoPathRadius = 60;
+        const ufoPathHeight = 25;
+        const ufoSpeed = 0.15;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await init();
+                setupControls();
+                await checkVRSupport();
+                updateInfo('Systems online - Ready for exploration!', 'success');
+            } catch (error) {
+                console.error('Initialization error:', error);
+                updateInfo(`Initialization failed: ${error.message}`, 'error');
+            }
+        });
+
+        async function init() {
+            // Create scene with fog for depth
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.FogExp2(0x000000, 0.0004);
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 500);
+            camera.position.set(0, 2, 5);
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap for performance
+            renderer.setClearColor(0x000000, 0);
+            document.body.appendChild(renderer.domElement);
+
+            // Enhanced lighting system
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const mainLight = new THREE.DirectionalLight(0xffd54f, 1.2);
+            mainLight.position.set(40, 60, 40);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 1024;
+            mainLight.shadow.mapSize.height = 1024;
+            mainLight.shadow.camera.near = 0.5;
+            mainLight.shadow.camera.far = 150;
+            mainLight.shadow.camera.left = -50;
+            mainLight.shadow.camera.right = 50;
+            mainLight.shadow.camera.top = 50;
+            mainLight.shadow.camera.bottom = -50;
+            scene.add(mainLight);
+
+            const fillLight = new THREE.DirectionalLight(0x4fc3f7, 0.3);
+            fillLight.position.set(-30, 30, -20);
+            scene.add(fillLight);
+
+            // Create enhanced Mars terrain
+            await createMarsTerrain();
+
+            // Create player avatar
+            createPlayer();
+
+            // Create habitat modules
+            await createHabitatModules();
+
+            // Create rocket
+            createRocket();
+
+            // Create UFO
+            createUFO();
+
+            // Create moon
+            createMoon();
+
+            // Create starfield
+            createStarfield();
+
+            // Add scattered rocks
+            await createRocks();
+
+            // Initialize clock
+            clock = new THREE.Clock();
+
+            // Start animation loop
+            animate();
+        }
+
+        async function createMarsTerrain() {
+            // Larger terrain with more detail
+            const terrainSize = 250;
+            const terrainDetail = 80;
+
+            const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainDetail, terrainDetail);
+            const vertices = terrainGeometry.attributes.position.array;
+
+            // Create more varied, realistic terrain
+            for (let i = 0; i < vertices.length; i += 3) {
+                const x = vertices[i];
+                const z = vertices[i + 2];
+
+                // Multi-layer noise for realistic terrain
+                let height = 0;
+                height += 0.3 * Math.sin(x * 0.025) * Math.cos(z * 0.025);
+                height += 0.25 * Math.sin(x * 0.06) * Math.sin(z * 0.04);
+                height += 0.2 * Math.cos(x * 0.04) * Math.sin(z * 0.07);
+                height += 0.15 * Math.sin(x * 0.1) * Math.cos(z * 0.08);
+                height += 0.1 * Math.sin(x * 0.18) * Math.sin(z * 0.12);
+
+                // Add some craters and elevated areas
+                const distFromCenter = Math.sqrt(x*x + z*z);
+                if (distFromCenter < 40) {
+                    // Central area slightly elevated for base
+                    height += 0.25 * (1 - distFromCenter/40) * Math.cos(distFromCenter * 0.08);
+                }
+
+                // Apply height
+                vertices[i + 1] = height * 5; // Increased scale for better visibility
+            }
+
+            terrainGeometry.computeVertexNormals();
+
+            // Enhanced terrain material with color variation
+            const terrainMaterial = new THREE.MeshStandardMaterial({
+                color: 0xb7410e,
+                roughness: 0.9,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+
+            // Create terrain mesh
+            terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+            terrain.rotation.x = -Math.PI / 2;
+            terrain.receiveShadow = true;
+            scene.add(terrain);
+        }
+
+        function createPlayer() {
+            // Create a simple player avatar (capsule shape)
+            const playerGroup = new THREE.Group();
+
+            // Body (capsule approximated with cylinder + sphere)
+            const bodyGeometry = new THREE.CylinderGeometry(0.35, 0.35, 1.0, 8);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4a90e2,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.5;
+            body.castShadow = true;
+            playerGroup.add(body);
+
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+            const headMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.2;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Visor/helmet
+            const visorGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+            const visorMaterial = new THREE.MeshStandardMaterial({
+                color: 0x87ceeb,
+                roughness: 0.1,
+                metalness: 0.9,
+                transparent: true,
+                opacity: 0.7
+            });
+            const visor = new THREE.Mesh(visorGeometry, visorMaterial);
+            visor.position.y = 1.2;
+            playerGroup.add(visor);
+
+            // Backpack
+            const packGeometry = new THREE.BoxGeometry(0.25, 0.18, 0.4);
+            const packMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8b4513,
+                roughness: 0.6,
+                metalness: 0.2
+            });
+            const pack = new THREE.Mesh(packGeometry, packMaterial);
+            pack.position.set(0, 0.5, -0.55);
+            pack.castShadow = true;
+            playerGroup.add(pack);
+
+            playerGroup.castShadow = true;
+            player = playerGroup;
+            scene.add(player);
+        }
+
+        async function createHabitatModules() {
+            // Create 4 advanced habitat modules in a circular formation
+            const moduleCount = 4;
+            const radius = 30;
+
+            for (let i = 0; i < moduleCount; i++) {
+                const angle = (i * Math.PI * 2) / moduleCount;
+                const offsetAngle = Math.PI / 4; // Offset for better spacing
+
+                const habitatGroup = new THREE.Group();
+
+                // Main habitat module (inflatable dome style)
+                const mainRadius = 5;
+                const mainHeight = 3.5;
+                const habitatGeometry = new THREE.CylinderGeometry(
+                    mainRadius, mainRadius, mainHeight, 16, 1, true
+                );
+                // Modify to make it more dome-like
+                habitatGeometry.translate(0, mainHeight/2, 0);
+
+                const habitatMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xff6b35,
+                    roughness: 0.35,
+                    metalness: 0.65,
+                    emissive: 0xff6b35,
+                    emissiveIntensity: 0.15
+                });
+
+                const mainHabitat = new THREE.Mesh(habitatGeometry, habitatMaterial);
+                mainHabitat.castShadow = true;
+                mainHabitat.receiveShadow = true;
+                habitatGroup.add(mainHabitat);
+
+                // Airlock/entry tunnel
+                const tunnelGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.8, 8);
+                const tunnelMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xcccccc,
+                    roughness: 0.3,
+                    metalness: 0.8
+                });
+                const tunnel = new THREE.Mesh(tunnelGeometry, tunnelMaterial);
+                tunnel.rotation.z = Math.PI / 2;
+                tunnel.position.set(mainRadius + 1, mainHeight/2, 0);
+                tunnel.castShadow = true;
+                habitatGroup.add(tunnel);
+
+                // Solar panel array
+                const createSolarPanel = (width, height) => {
+                    const panelGroup = new THREE.Group();
+
+                    // Panel frame
+                    const frameGeometry = new THREE.BoxGeometry(width, 0.08, height);
+                    const frameMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x2f2f2f,
+                        roughness: 0.5,
+                        metalness: 0.85
+                    });
+                    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                    panelGroup.add(frame);
+
+                    // Solar cells
+                    const cellGeometry = new THREE.PlaneGeometry(width - 0.16, height - 0.16);
+                    const cellMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x1a1a1a,
+                        roughness: 0.08,
+                        metalness: 0.92,
+                        emissive: 0x005500,
+                        emissiveIntensity: 0.3
+                    });
+                    const cells = new THREE.Mesh(cellGeometry, cellMaterial);
+                    cells.position.y = 0.04;
+                    panelGroup.add(cells);
+
+                    return panelGroup;
+                };
+
+                // Create 3 solar panels per habitat
+                for (let j = 0; j < 3; j++) {
+                    const panelAngle = (j * Math.PI * 2) / 3;
+                    const panel = createSolarPanel(3.5, 2.2);
+                    panel.position.set(
+                        Math.cos(panelAngle) * (mainRadius + 3),
+                        mainHeight + 2,
+                        Math.sin(panelAngle) * (mainRadius + 3)
+                    );
+                    // Tilt panel towards "sun" (simplified)
+                    panel.rotation.x = -Math.PI / 8;
+                    panel.rotation.y = panelAngle + Math.PI / 2;
+                    habitatGroup.add(panel);
+                }
+
+                // Communication dish
+                const dishGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 10);
+                const dishMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x4a90e2,
+                    roughness: 0.15,
+                    metalness: 0.85
+                });
+                const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+                dish.position.set(0, mainHeight + 0.8, 0);
+                dish.rotation.x = -Math.PI / 6;
+                habitatGroup.add(dish);
+
+                // Position the habitat
+                const posX = Math.cos(angle + offsetAngle) * radius;
+                const posZ = Math.sin(angle + offsetAngle) * radius;
+                habitatGroup.position.set(posX, 0, posZ);
+                habitatGroup.rotation.y = angle + offsetAngle;
+
+                habitatGroup.castShadow = true;
+                habitatGroup.receiveShadow = true;
+
+                scene.add(habitatGroup);
+                habitatModules.push(habitatGroup);
+            }
+        }
+
+        function createRocket() {
+            const rocketGroup = new THREE.Group();
+
+            // Rocket body with stages
+            const bodyGeometry = new THREE.CylinderGeometry(1.2, 1.2, 6, 14);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.18,
+                metalness: 0.88
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 3;
+            body.castShadow = true;
+            rocketGroup.add(body);
+
+            // Upper stage
+            const upperBodyGeometry = new THREE.CylinderGeometry(0.8, 0.8, 2.5, 10);
+            const upperBodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff6b35,
+                roughness: 0.18,
+                metalness: 0.88
+            });
+            const upperBody = new THREE.Mesh(upperBodyGeometry, upperBodyMaterial);
+            upperBody.position.y = 6 + 1.25;
+            upperBody.castShadow = true;
+            rocketGroup.add(upperBody);
+
+            // Nose cone
+            const noseGeometry = new THREE.ConeGeometry(0.8, 2.0, 12);
+            const noseMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff6b35,
+                roughness: 0.18,
+                metalness: 0.88
+            });
+            const noseCone = new THREE.Mesh(noseGeometry, noseMaterial);
+            noseCone.position.y = 6 + 1.25 + 1.0;
+            noseCone.castShadow = true;
+            rocketGroup.add(noseCone);
+
+            // Fins
+            for (let i = 0; i < 3; i++) {
+                const angle = (i * Math.PI * 2) / 3;
+                const finGeometry = new THREE.BoxGeometry(0.18, 1.2, 2.5);
+                const finMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x888888,
+                    roughness: 0.5,
+                    metalness: 0.6
+                });
+                const fin = new THREE.Mesh(finGeometry, finMaterial);
+                fin.position.set(
+                    Math.cos(angle) * 1.3,
+                    1.5,
+                    Math.sin(angle) * 1.3
+                );
+                fin.rotation.y = angle;
+                fin.castShadow = true;
+                rocketGroup.add(fin);
+            }
+
+            // Engines
+            const engineGeometry = new THREE.CylinderGeometry(0.25, 0.35, 0.8, 8);
+            const engineMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.15,
+                metalness: 0.88
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const angle = (i * Math.PI * 2) / 3;
+                const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+                engine.position.set(
+                    Math.cos(angle) * 0.8,
+                    0.1,
+                    Math.sin(angle) * 0.8
+                );
+                engine.rotation.x = Math.PI / 2;
+                engine.castShadow = true;
+                rocketGroup.add(engine);
+            }
+
+            // Position rocket
+            rocketGroup.position.set(-25, 0.2, 20);
+            rocketGroup.rotation.y = Math.PI / 6;
+            rocket = rocketGroup;
+            scene.add(rocket);
+        }
+
+        function createUFO() {
+            const ufoGroup = new THREE.Group();
+
+            // Main saucer body
+            const saucerGeometry = new THREE.CylinderGeometry(2.5, 2.5, 0.6, 20);
+            const saucerMaterial = new THREE.MeshStandardMaterial({
+                color: 0x777777,
+                roughness: 0.12,
+                metalness: 0.88,
+                emissive: 0x222222,
+                emissiveIntensity: 0.25
+            });
+            const saucer = new THREE.Mesh(saucerGeometry, saucerMaterial);
+            saucer.position.y = 0.3;
+            saucer.castShadow = true;
+            ufoGroup.add(saucer);
+
+            // Dome
+            const domeGeometry = new THREE.SphereGeometry(1.8, 14, 14, 0, Math.PI * 2, 0, Math.PI / 2);
+            const domeMaterial = new THREE.MeshStandardMaterial({
+                color: 0x0099ff,
+                roughness: 0.12,
+                metalness: 0.82,
+                transparent: true,
+                opacity: 0.75
+            });
+            const dome = new THREE.Mesh(domeGeometry, domeMaterial);
+            dome.position.y = 1.1;
+            ufoGroup.add(dome);
+
+            // Lights around edge
+            for (let i = 0; i < 10; i++) {
+                const angle = (i * Math.PI * 2) / 10;
+                const lightGeometry = new THREE.SphereGeometry(0.18, 5, 5);
+                const lightMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xff0000,
+                    emissive: 0xff0000,
+                    emissiveIntensity: 1.5
+                });
+                const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                light.position.set(
+                    Math.cos(angle) * 2.3,
+                    0.45,
+                    Math.sin(angle) * 2.3
+                );
+                ufoGroup.add(light);
+            }
+
+            // Bottom thrusters
+            const thrusterGeometry = new THREE.CylinderGeometry(0.25, 0.35, 0.5, 6);
+            const thruterMaterial = new THREE.MeshStandardMaterial({
+                color: 0xff4500,
+                roughness: 0.18,
+                metalness: 0.82,
+                emissive: 0xff4500,
+                emissiveIntensity: 1.2
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const angle = (i * Math.PI * 2) / 3;
+                const thruster = new THREE.Mesh(thrusterGeometry, thruterMaterial);
+                thruster.position.set(
+                    Math.cos(angle) * 1.2,
+                    -0.2,
+                    Math.sin(angle) * 1.2
+                );
+                thruster.rotation.x = Math.PI / 2;
+                ufoGroup.add(thruster);
+            }
+
+            ufoGroup.castShadow = true;
+            ufo = ufoGroup;
+            scene.add(ufo);
+        }
+
+        function createMoon() {
+            const moonGeometry = new THREE.SphereGeometry(6, 18, 18);
+            const moonMaterial = new THREE.MeshStandardMaterial({
+                color: 0xf8f8f8,
+                roughness: 0.85,
+                metalness: 0.08,
+                emissive: 0xf8f8f8,
+                emissiveIntensity: 0.08
+            });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(-100, 35, 80);
+            moon.castShadow = true;
+            scene.add(moon);
+        }
+
+        function createStarfield() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 5000;
+            const starsPositions = new Float32Array(starsCount * 3);
+
+            for (let i = 0; i < starsCount; i++) {
+                starsPositions[i * 3] = (Math.random() - 0.5) * 2000;
+                starsPositions[i * 3 + 1] = (Math.random() - 0.5) * 2000;
+                starsPositions[i * 3 + 2] = (Math.random() - 0.5) * 2000;
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
+
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 1.2,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+
+        async function createRocks() {
+            // Create scattered rocks around the terrain
+            for (let i = 0; i < 30; i++) {
+                const rockSize = 0.4 + Math.random() * 1.8;
+                const rockGeometry = new THREE.DodecahedronGeometry(rockSize, 0);
+                // Modify the vertices using the position attribute (BufferGeometry)
+                const position = rockGeometry.attributes.position;
+                const posArray = position.array;
+
+                for (let j = 0; j < posArray.length; j += 3) {
+                    posArray[j]     += (Math.random() - 0.5) * 0.15; // x
+                    posArray[j + 1] += (Math.random() - 0.5) * 0.15; // y
+                    posArray[j + 2] += (Math.random() - 0.5) * 0.15; // z
+                }
+                position.needsUpdate = true;
+
+                // Compute normals after modifying vertices
+                rockGeometry.computeVertexNormals();
+
+                const rockMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x8b3a1a,
+                    roughness: 0.88,
+                    metalness: 0.15
+                });
+
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(
+                    (Math.random() - 0.5) * 220,
+                    0.05 + Math.random() * 2.0,
+                    (Math.random() - 0.5) * 220
+                );
+                rock.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                rock.castShadow = true;
+                rock.receiveShadow = true;
+                scene.add(rock);
+                rocks.push(rock);
+            }
+        }
+
+        function setupControls() {
+            let isDragging = false;
+            let lastMouseX = 0;
+            let lastMouseY = 0;
+
+            // Mouse controls for look around
+            renderer.domElement.addEventListener('pointerdown', (event) => {
+                isDragging = true;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+                renderer.domElement.setPointerCapture(event.pointerId);
+                // Prevent text selection
+                event.preventDefault();
+            });
+
+            renderer.domElement.addEventListener('pointerup', (event) => {
+                isDragging = false;
+                renderer.domElement.releasePointerCapture(event.pointerId);
+            });
+
+            renderer.domElement.addEventListener('pointermove', (event) => {
+                if (!isDragging) return;
+
+                const deltaX = event.clientX - lastMouseX;
+                const deltaY = event.clientY - lastMouseY;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+
+                // Look sensitivity
+                const sensitivity = 0.003;
+                camera.rotation.y -= deltaX * sensitivity; // Yaw
+                camera.rotation.x -= deltaY * sensitivity; // Pitch
+
+                // Limit pitch to avoid flipping
+                camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
+            });
+
+            // Mouse wheel for forward/backward movement
+            renderer.domElement.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const delta = event.deltaY * 0.005; // Sensitivity
+                // Move forward/backward based on current orientation
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyQuaternion(camera.quaternion).normalize();
+                camera.position.add(forward.clone().multiplyScalar(delta * 20)); // Speed factor
+            });
+
+            // Touch support for look around
+            renderer.domElement.addEventListener('touchstart', (event) => {
+                if (event.touches.length === 1) {
+                    isDragging = true;
+                    const touch = event.touches[0];
+                    lastMouseX = touch.clientX;
+                    lastMouseY = touch.clientY;
+                }
+            });
+
+            renderer.domElement.addEventListener('touchend', (event) => {
+                isDragging = false;
+            });
+
+            renderer.domElement.addEventListener('touchmove', (event) => {
+                if (!isDragging || event.touches.length !== 1) return;
+
+                const touch = event.touches[0];
+                const deltaX = touch.clientX - lastMouseX;
+                const deltaY = touch.clientY - lastMouseY;
+                lastMouseX = touch.clientX;
+                lastMouseY = touch.clientY;
+
+                const sensitivity = 0.003;
+                camera.rotation.y -= deltaX * sensitivity;
+                camera.rotation.x -= deltaY * sensitivity;
+
+                camera.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, camera.rotation.x));
+            });
+
+            // Keyboard controls for movement
+            document.addEventListener('keydown', (event) => {
+                if (keys.hasOwnProperty(event.code)) {
+                    keys[event.code] = true;
+                    updateInteractionFeedback(true);
+                    updateDebugDisplay();
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                if (keys.hasOwnProperty(event.code)) {
+                    keys[event.code] = false;
+                    updateInteractionFeedback(false);
+                    updateDebugDisplay();
+                }
+            });
+
+            // Also listen on window to ensure we catch events
+            window.addEventListener('keydown', (event) => {
+                if (keys.hasOwnProperty(event.code)) {
+                    keys[event.code] = true;
+                    updateInteractionFeedback(true);
+                    updateDebugDisplay();
+                }
+            });
+
+            window.addEventListener('keyup', (event) => {
+                if (keys.hasOwnProperty(event.code)) {
+                    keys[event.code] = false;
+                    updateInteractionFeedback(false);
+                    updateDebugDisplay();
+                }
+            });
+
+            controlsEnabled = true;
+
+            // Show controls hint briefly
+            setTimeout(() => {
+                document.querySelector('.controls-hint').style.display = 'block';
+                setTimeout(() => {
+                    document.querySelector('.controls-hint').style.opacity = '0';
+                    setTimeout(() => {
+                        document.querySelector('.controls-hint').style.display = 'none';
+                    }, 1500);
+                }, 3000);
+            }, 1000);
+        }
+
+        function updateInteractionFeedback(isMoving) {
+            const infoEl = document.getElementById('info');
+            if (!infoEl) return;
+
+            if (isMoving) {
+                // Check if any movement keys are actually pressed
+                const movementKeys = [
+                    keys.ArrowUp, keys.ArrowDown, keys.ArrowLeft, keys.ArrowRight,
+                    keys.KeyW, keys.KeyS, keys.KeyA, keys.KeyD
+                ];
+                const anyMovementKey = movementKeys.some(key => key);
+
+                if (anyMovementKey) {
+                    infoEl.classList.add('moving');
+                    if (isVRSession) {
+                        infoEl.classList.add('vr-active');
+                    }
+                } else {
+                    infoEl.classList.remove('moving');
+                    infoEl.classList.remove('vr-active');
+                }
+            } else {
+                infoEl.classList.remove('moving');
+                infoEl.classList.remove('vr-active');
+            }
+        }
+
+        function updateDebugDisplay() {
+            const pressedKeys = [];
+            for (const key in keys) {
+                if (keys[key]) {
+                    let keyName = key.replace('Arrow', '').replace('Key', '');
+                    // Make key names more readable
+                    if (keyName === 'Space') keyName = 'SPACE';
+                    else if (keyName === 'ShiftLeft' || keyName === 'ShiftRight') keyName = 'SHIFT';
+                    pressedKeys.push(keyName);
+                }
+            }
+            const debugEl = document.getElementById('keys-display');
+            if (debugEl) {
+                debugEl.textContent = pressedKeys.length > 0 ? pressedKeys.join(' + ') : 'none';
+            }
+
+            const debugBox = document.getElementById('debug-keys');
+            if (debugBox) {
+                debugBox.style.display = pressedKeys.length > 0 ? 'block' : 'none';
+            }
+        }
+
+        function updateInfo(message, type = 'info') {
+            const infoEl = document.getElementById('info');
+            if (!infoEl) return;
+
+            // Remove existing status classes
+            infoEl.classList.remove('moving', 'vr-active', 'success', 'error', 'warning');
+
+            // Add type-specific class
+            if (type === 'success') infoEl.classList.add('success');
+            else if (type === 'error') infoEl.classList.add('error');
+            else if (type === 'warning') infoEl.classList.add('warning');
+
+            // Update content
+            infoEl.innerHTML = `
+                <h3>Mars Base Explorer</h3>
+                <p>${message}</p>
+            `;
+        }
+
+        function checkVRSupport() {
+            return new Promise((resolve) => {
+                if (!navigator.xr) {
+                    updateInfo('VR not available in this browser - Using keyboard/mouse controls', 'warning');
+                    updateVRStatus(false);
+                    resolve(false);
+                    return;
+                }
+
+                navigator.xr.isSessionSupported('immersive-vr').then(supported => {
+                    if (supported) {
+                        updateInfo('VR supported! Click "Enter VR" for immersive experience', 'success');
+                        updateVRStatus(true);
+
+                        // Setup VR button
+                        const enterVRButton = document.getElementById('enter-vr');
+                        enterVRButton.disabled = false;
+                        enterVRButton.style.display = 'inline-block';
+
+                        enterVRButton.addEventListener('click', async () => {
+                            try {
+                                await renderer.xr.setReferenceSpaceType('local');
+                                const session = await renderer.xr.requestSession();
+                                isVRSession = true;
+
+                                updateInfo('In VR Mode - Look Around & Explore!', 'success');
+                                updateVRStatus(true);
+
+                                // Handle session end
+                                session.addEventListener('end', () => {
+                                    isVRSession = false;
+                                    updateInfo('VR session ended - Returning to keyboard/mouse controls', 'info');
+                                    updateVRStatus(false);
+                                });
+                            } catch (err) {
+                                console.error('VR session error:', err);
+                                updateInfo('VR session failed - Please try again', 'error');
+                                updateVRStatus(false);
+                            }
+                        });
+                    } else {
+                        updateInfo('VR not supported on this device - Using keyboard/mouse controls', 'warning');
+                        updateVRStatus(false);
+                    }
+                    resolve(supported);
+                }).catch(err => {
+                    console.error('WebXR check error:', err);
+                    updateInfo('WebXR unavailable - Using keyboard/mouse controls', 'error');
+                    updateVRStatus(false);
+                    resolve(false);
+                });
+            });
+        }
+
+        function updateVRStatus(isSupported) {
+            const statusEl = document.getElementById('vr-status');
+            if (!statusEl) return;
+
+            if (isSupported) {
+                statusEl.className = 'status-indicator online';
+                statusEl.title = 'VR Supported - Click to enter';
+                statusEl.textContent = '🕶️ VR Ready';
+            } else {
+                statusEl.className = 'status-indicator offline';
+                statusEl.title = 'VR Not Available';
+                statusEl.textContent = '👓 Desktop Mode';
+            }
+        }
+
+        function animate() {
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            // Update player position to match camera (smoothly)
+            if (player) {
+                // Smoothly interpolate player position to camera position
+                player.position.lerp(camera.position, 0.08);
+                // Player looks slightly down to appear grounded
+                player.quaternion.setFromEuler(new THREE.Euler(0, camera.rotation.y, 0));
+            }
+
+            // Handle keyboard movement for camera
+            if (controlsEnabled && !isVRSession) {
+                const moveSpeed = 8 * delta; // Base movement speed
+                const sprintMultiplier = keys.ShiftLeft || keys.ShiftRight ? 2.0 : 1.0;
+                const actualSpeed = moveSpeed * sprintMultiplier;
+                const verticalSpeed = 4 * delta; // Vertical movement speed
+
+                // Calculate forward vector based on camera orientation
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyQuaternion(camera.quaternion);
+                forward.normalize();
+
+                // Calculate right vector
+                const right = new THREE.Vector3(1, 0, 0);
+                right.applyQuaternion(camera.quaternion);
+                right.normalize();
+
+                // Calculate movement
+                const move = new THREE.Vector3();
+
+                if (keys.ArrowUp || keys.KeyW) {
+                    move.add(forward);
+                }
+                if (keys.ArrowDown || keys.KeyS) {
+                    move.sub(forward);
+                }
+                if (keys.ArrowLeft || keys.KeyA) {
+                    move.sub(right);
+                }
+                if (keys.ArrowRight || keys.KeyD) {
+                    move.add(right);
+                }
+
+                // Apply horizontal movement
+                if (move.length() > 0) {
+                    move.normalize().multiplyScalar(actualSpeed);
+                    camera.position.add(move);
+                }
+
+                // Handle vertical movement (Space/Ctrl)
+                if (keys.Space) {
+                    camera.position.y += verticalSpeed;
+                }
+                // Note: Using Shift for sprint, not crouch to avoid conflict
+                // For crouch, we could use Control key if needed
+            }
+
+            // Update UFO animation
+            if (ufo) {
+                ufoTime += delta * ufoSpeed;
+                const offset = Math.sin(elapsedTime * 0.25) * 2; // Gentle bobbing
+
+                ufo.position.set(
+                    Math.cos(ufoTime) * ufoPathRadius,
+                    ufoPathHeight + offset,
+                    Math.sin(ufoTime) * ufoPathRadius
+                );
+
+                // Make UFO face direction of movement
+                ufo.rotation.y = ufoTime + Math.PI / 2;
+                ufo.rotation.z = Math.sin(elapsedTime * 0.4) * 0.15; // Gentle tilt
+
+                // Pulsing lights
+                const pulse = Math.sin(elapsedTime * 2.2) * 0.4 + 0.6;
+                ufo.traverse((object) => {
+                    if (object.isMesh && object.material.emissive) {
+                        const baseIntensity = 1.8;
+                        object.material.emissiveIntensity = baseIntensity * (0.3 + pulse * 0.7);
+                    }
+                });
+            }
+
+            // Animate moon (slow rotation)
+            if (moon) {
+                moon.rotation.y += delta * 0.003;
+                moon.rotation.x += delta * 0.0015;
+                moon.rotation.z += delta * 0.001;
+            }
+
+            // Animate starfield (slow rotation)
+            if (stars) {
+                stars.rotation.y += delta * 0.0005;
+                stars.rotation.x += delta * 0.0003;
+            }
+
+            // Render scene
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
