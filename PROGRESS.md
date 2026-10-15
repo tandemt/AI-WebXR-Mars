@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.2
+# Mars WebXR Demo - Progress Report v0.0.3
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -45,6 +45,7 @@ This document summarizes the progress made on the Mars Base WebXR demo.
    - Smooth player avatar movement
 5. **Input and Animation Fix**: 
    - Added missing `playerHeight` variable (set to 1.6) to resolve ReferenceError that was breaking keyboard input and animation loop. This fix restores WASD/arrow keys/Space/Shift movement, mouse look, and ensures terrain height clamping works correctly to prevent see-through floor.
+6. **Terrain Color Fix**: Changed terrain material color from 0xb7410e to 0xff8c42 (a sandy red/orange) to better match the expected Mars appearance, ensuring the ground is visible and correctly colored.
 
 ## File Structure
 ```
