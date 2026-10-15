@@ -193,12 +193,13 @@
     <script>
         // Main application variables
         let scene, camera, renderer, clock;
+        let playerHeight = 1.6;
         let controlsEnabled = false;
         let isVRSession = false;
         const keys = {
             ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
             KeyW: false, KeyS: false, KeyA: false, KeyD: false,
-            Space: false, ShiftLeft: false, ShiftRight: false
+            Space: false, ShiftLeft: false, ShiftRight: false, KeyR: false
         };
 
         // Game objects
@@ -217,6 +218,24 @@
         const ufoPathRadius = 60;
         const ufoPathHeight = 25;
         const ufoSpeed = 0.15;
+
+function computeTerrainHeight(x, z) {
+    let height = 0;
+    height += 0.3 * Math.sin(x * 0.025) * Math.cos(z * 0.025);
+    height += 0.25 * Math.sin(x * 0.06) * Math.sin(z * 0.04);
+    height += 0.2 * Math.cos(x * 0.04) * Math.sin(z * 0.07);
+    height += 0.15 * Math.sin(x * 0.1) * Math.cos(z * 0.08);
+    height += 0.1 * Math.sin(x * 0.18) * Math.sin(z * 0.12);
+
+    // Add some craters and elevated areas
+    const distFromCenter = Math.sqrt(x*x + z*z);
+    if (distFromCenter < 40) {
+        // Central area slightly elevated for base
+        height += 0.25 * (1 - distFromCenter/40) * Math.cos(distFromCenter * 0.08);
+    }
+
+    return height * 5;
+}
 
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -850,6 +869,10 @@
                     keys[event.code] = true;
                     updateInteractionFeedback(true);
                     updateDebugDisplay();
+                    if (event.code === 'KeyR') {
+                        const groundY = computeTerrainHeight(camera.position.x, camera.position.z);
+                        camera.position.y = groundY + playerHeight;
+                    }
                 }
             });
 
@@ -867,6 +890,10 @@
                     keys[event.code] = true;
                     updateInteractionFeedback(true);
                     updateDebugDisplay();
+                    if (event.code === 'KeyR') {
+                        const groundY = computeTerrainHeight(camera.position.x, camera.position.z);
+                        camera.position.y = groundY + playerHeight;
+                    }
                 }
             });
 
@@ -1086,6 +1113,13 @@
                 }
                 // Note: Using Shift for sprint, not crouch to avoid conflict
                 // For crouch, we could use Control key if needed
+            }
+            // Clamp camera to terrain height to prevent going underground
+            if (controlsEnabled && !isVRSession) {
+                const groundY = computeTerrainHeight(camera.position.x, camera.position.z);
+                if (camera.position.y < groundY + playerHeight) {
+                    camera.position.y = groundY + playerHeight;
+                }
             }
 
             // Update UFO animation

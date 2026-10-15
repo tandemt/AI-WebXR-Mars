@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.1
+# Mars WebXR Demo - Progress Report v0.0.2
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -43,6 +43,8 @@ This document summarizes the progress made on the Mars Base WebXR demo.
    - Animated UFO with circular path and pulsing lights
    - Slowly rotating moon
    - Smooth player avatar movement
+5. **Input and Animation Fix**: 
+   - Added missing `playerHeight` variable (set to 1.6) to resolve ReferenceError that was breaking keyboard input and animation loop. This fix restores WASD/arrow keys/Space/Shift movement, mouse look, and ensures terrain height clamping works correctly to prevent see-through floor.
 
 ## File Structure
 ```
