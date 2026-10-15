@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.3
+# Mars WebXR Demo - Progress Report v0.0.4
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -46,6 +46,11 @@ This document summarizes the progress made on the Mars Base WebXR demo.
 5. **Input and Animation Fix**: 
    - Added missing `playerHeight` variable (set to 1.6) to resolve ReferenceError that was breaking keyboard input and animation loop. This fix restores WASD/arrow keys/Space/Shift movement, mouse look, and ensures terrain height clamping works correctly to prevent see-through floor.
 6. **Terrain Color Fix**: Changed terrain material color from 0xb7410e to 0xff8c42 (a sandy red/orange) to better match the expected Mars appearance, ensuring the ground is visible and correctly colored.
+7. **Terrain Orientation Fix**: Fixed terrain heightmap being applied to wrong axis (y-axis of geometry) causing incorrect orientation. Changed vertex displacement from geometry's y-axis to z-axis in createMarsTerrain function, ensuring proper terrain displacement along world y-axis after rotation.
+8. **WebXR Fixes**:
+   - Added VR camera update in animate() function to properly track headset movement when in VR session
+   - Added geometry update flags (needsUpdate = true) after modifying vertex positions in createMarsTerrain() and verified in createRocks()
+   - Improved VR button state management: disable button during active VR session, re-enable on session end or failure
 
 ## File Structure
 ```

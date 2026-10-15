@@ -347,8 +347,10 @@ function computeTerrainHeight(x, z) {
                 }
 
                 // Apply height
-                vertices[i + 1] = height * 5; // Increased scale for better visibility
+                vertices[i + 2] = height * 5; // Increased scale for better visibility
             }
+            // Notify the geometry that the position attribute has changed
+            terrainGeometry.attributes.position.needsUpdate = true;
 
             terrainGeometry.computeVertexNormals();
 
@@ -1011,6 +1013,7 @@ function computeTerrainHeight(x, z) {
                                 await renderer.xr.setReferenceSpaceType('local');
                                 const session = await renderer.xr.requestSession();
                                 isVRSession = true;
+                                enterVRButton.disabled = true;
 
                                 updateInfo('In VR Mode - Look Around & Explore!', 'success');
                                 updateVRStatus(true);
@@ -1018,6 +1021,7 @@ function computeTerrainHeight(x, z) {
                                 // Handle session end
                                 session.addEventListener('end', () => {
                                     isVRSession = false;
+                                    enterVRButton.disabled = false;
                                     updateInfo('VR session ended - Returning to keyboard/mouse controls', 'info');
                                     updateVRStatus(false);
                                 });
@@ -1025,6 +1029,7 @@ function computeTerrainHeight(x, z) {
                                 console.error('VR session error:', err);
                                 updateInfo('VR session failed - Please try again', 'error');
                                 updateVRStatus(false);
+                                enterVRButton.disabled = false;
                             }
                         });
                     } else {
@@ -1059,6 +1064,11 @@ function computeTerrainHeight(x, z) {
         function animate() {
             const delta = clock.getDelta();
             const elapsedTime = clock.getElapsedTime();
+
+            // Update camera from XR device if in VR session
+            if (isVRSession) {
+                renderer.xr.getCamera(camera);
+            }
 
             // Update player position to match camera (smoothly)
             if (player) {
