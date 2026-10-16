@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.6
+# Mars WebXR Demo - Progress Report v0.0.7
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -62,7 +62,11 @@ This document summarizes the progress made on the Mars Base WebXR demo.
     - Added `audio.preload = 'auto'` to encourage preloading of audio files.
     - Fixed VR session request by adding `await renderer.xr.setSession('immersive-vr')` before setting reference space type and requesting session.
     - This ensures the browser requests an 'immersive-vr' session rather than the default 'inline' (AR) mode.
-    - VR button logic remains: enabled/disabled appropriately, session end/failure handling updates UI correctly.
+    - VR button logic remains: enabled/disabled appropriately, session end/failure handling updates UI correctl
+11. **AudioManager Enhancement - Embedded Sounds Fallback**:
+    - Added base64-encoded audio fallback for ambient Mars wind (looping) and UI click (short) sounds.
+    - Enhanced AudioManager.init() to fall back to embedded sounds when external URLs fail, logging fallback and setting appropriate audio properties.
+    - Preserved all existing structure, methods (play, stop, startAmbient), and first-user-interaction autoplay compliance listener.
 
 ## File Structure
 ```
@@ -80,7 +84,7 @@ mars-webxr-demo/
 ## Future Enhancements
 - Collision detection with terrain
 - More detailed habitat interiors
-- Sound effects and ambient audio (now implemented - replace placeholder URLs with actual audio files)
+- Sound effects and ambient audio (now implemented with fallback - replace placeholder URLs with actual audio files for better quality)
 - Additional UI elements (mini-map, status displays)
 - Optimizations for lower-end devices
 - Additional planetary objects (asteroids, satellites)
