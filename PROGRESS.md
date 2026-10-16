@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.4
+# Mars WebXR Demo - Progress Report v0.0.5
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -51,6 +51,12 @@ This document summarizes the progress made on the Mars Base WebXR demo.
    - Added VR camera update in animate() function to properly track headset movement when in VR session
    - Added geometry update flags (needsUpdate = true) after modifying vertex positions in createMarsTerrain() and verified in createRocks()
    - Improved VR button state management: disable button during active VR session, re-enable on session end or failure
+9. **Audio Implementation**: 
+   - Added AudioManager class using HTML5 Audio API
+   - Integrated ambient sounds (Mars wind, UFO hum, rocket engine, habitat hum) and one-shot sounds (footsteps, jump, UI click)
+   - Implemented autoplay compliance (starts on first user interaction)
+   - Added object-specific sounds as ambient loops
+   - Note: Placeholder URLs used; replace with actual audio files for sound playback
 
 ## File Structure
 ```
@@ -68,7 +74,7 @@ mars-webxr-demo/
 ## Future Enhancements
 - Collision detection with terrain
 - More detailed habitat interiors
-- Sound effects and ambient audio
+- Sound effects and ambient audio (now implemented - replace placeholder URLs with actual audio files)
 - Additional UI elements (mini-map, status displays)
 - Optimizations for lower-end devices
 - Additional planetary objects (asteroids, satellites)

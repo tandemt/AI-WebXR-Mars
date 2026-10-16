@@ -201,6 +201,8 @@
             KeyW: false, KeyS: false, KeyA: false, KeyD: false,
             Space: false, ShiftLeft: false, ShiftRight: false, KeyR: false
         };
+        let lastFootstepTime = 0;
+        const footstepInterval = 0.3; // seconds
 
         // Game objects
         let player = null;
@@ -212,12 +214,80 @@
         let stars = null;
         const habitatModules = [];
         const rocks = [];
+        let audioManager = null;
 
         // UFO animation variables
         let ufoTime = 0;
         const ufoPathRadius = 60;
         const ufoPathHeight = 25;
         const ufoSpeed = 0.15;
+
+        // Audio Manager
+        class AudioManager {
+            constructor() {
+                this.sounds = {};
+                this.listener = null;
+                this.init();
+            }
+
+            init() {
+                const soundUrls = {
+                    marsWind: 'https://example.com/mars-wind.mp3',
+                    ufoHum: 'https://example.com/ufo-hum.mp3',
+                    rocketEngine: 'https://example.com/rocket-engine.mp3',
+                    habitatHum: 'https://example.com/habitat-hum.mp3',
+                    footstep: 'https://example.com/footstep.mp3',
+                    jump: 'https://example.com/jump.mp3',
+                    uiClick: 'https://example.com/ui-click.mp3'
+                };
+
+                for (const [key, url] of Object.entries(soundUrls)) {
+                    const audio = new Audio(url);
+                    if (key === 'marsWind' || key === 'ufoHum' || key === 'rocketEngine' || key === 'habitatHum') {
+                        audio.loop = true;
+                        audio.volume = 0.5;
+                    } else {
+                        audio.loop = false;
+                        audio.volume = 0.7;
+                    }
+                    this.sounds[key] = audio;
+                }
+
+                this.ambientStarted = false;
+            }
+
+            play(key) {
+                const sound = this.sounds[key];
+                if (sound) {
+                    if (sound.loop) {
+                        if (sound.paused) {
+                            sound.play().catch(e => console.warn(`Failed to play ${key}:`, e));
+                        }
+                    } else {
+                        const clone = sound.cloneNode();
+                        clone.play().catch(e => console.warn(`Failed to play ${key}:`, e));
+                    }
+                }
+            }
+
+            stop(key) {
+                const sound = this.sounds[key];
+                if (sound && !sound.loop) {
+                    sound.pause();
+                    sound.currentTime = 0;
+                }
+            }
+
+            startAmbient() {
+                if (!this.ambientStarted) {
+                    this.play('marsWind');
+                    this.play('ufoHum');
+                    this.play('rocketEngine');
+                    this.play('habitatHum');
+                    this.ambientStarted = true;
+                }
+            }
+        }
 
 function computeTerrainHeight(x, z) {
     let height = 0;
@@ -313,6 +383,19 @@ function computeTerrainHeight(x, z) {
 
             // Initialize clock
             clock = new THREE.Clock();
+            // Initialize audio manager
+            audioManager = new AudioManager();
+            // Start ambient sounds on first user interaction (to respect autoplay policy)
+            const startAmbientOnce = () => {
+                if (audioManager) {
+                    audioManager.startAmbient();
+                }
+                // Remove the listeners after first interaction
+                document.removeEventListener('click', startAmbientOnce);
+                document.removeEventListener('keydown', startAmbientOnce);
+            };
+            document.addEventListener('click', startAmbientOnce);
+            document.addEventListener('keydown', startAmbientOnce);
 
             // Start animation loop
             animate();
@@ -875,6 +958,9 @@ function computeTerrainHeight(x, z) {
                         const groundY = computeTerrainHeight(camera.position.x, camera.position.z);
                         camera.position.y = groundY + playerHeight;
                     }
+                    if (event.code === 'Space' && audioManager) {
+                        audioManager.play('jump');
+                    }
                 }
             });
 
@@ -895,6 +981,9 @@ function computeTerrainHeight(x, z) {
                     if (event.code === 'KeyR') {
                         const groundY = computeTerrainHeight(camera.position.x, camera.position.z);
                         camera.position.y = groundY + playerHeight;
+                    }
+                    if (event.code === 'Space' && audioManager) {
+                        audioManager.play('jump');
                     }
                 }
             });
@@ -1009,6 +1098,9 @@ function computeTerrainHeight(x, z) {
                         enterVRButton.style.display = 'inline-block';
 
                         enterVRButton.addEventListener('click', async () => {
+                            if (audioManager) {
+                                audioManager.play('uiClick');
+                            }
                             try {
                                 await renderer.xr.setReferenceSpaceType('local');
                                 const session = await renderer.xr.requestSession();
@@ -1109,6 +1201,15 @@ function computeTerrainHeight(x, z) {
                 }
                 if (keys.ArrowRight || keys.KeyD) {
                     move.add(right);
+                }
+                // Footstep sounds
+                if (move.length() > 0 && audioManager) {
+                    const now = elapsedTime;
+                    const effectiveInterval = footstepInterval / sprintMultiplier;
+                    if (now - lastFootstepTime > effectiveInterval) {
+                        audioManager.play('footstep');
+                        lastFootstepTime = now;
+                    }
                 }
 
                 // Apply horizontal movement
