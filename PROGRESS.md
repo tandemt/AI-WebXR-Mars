@@ -1,4 +1,4 @@
-# Mars WebXR Demo - Progress Report v0.0.7
+# Mars WebXR Demo - Progress Report v0.0.8
 
 ## Overview
 This document summarizes the progress made on the Mars Base WebXR demo.
@@ -67,6 +67,13 @@ This document summarizes the progress made on the Mars Base WebXR demo.
     - Added base64-encoded audio fallback for ambient Mars wind (looping) and UI click (short) sounds.
     - Enhanced AudioManager.init() to fall back to embedded sounds when external URLs fail, logging fallback and setting appropriate audio properties.
     - Preserved all existing structure, methods (play, stop, startAmbient), and first-user-interaction autoplay compliance listener.
+12. **AudioManager Fix - Functional Fallback Sounds**:
+    - Replaced empty base64 constants with functions that generate functional WAV sounds:
+      * generateClickSound(): creates a short click impulse
+      * generateWindSound(): creates 0.5 seconds of white noise
+    - Constants now set to function return values, providing functional fallback sounds.
+    - When primary URLs fail, error listeners create Audio elements from the embedded base64 data.
+    - AudioManager initialization and playback logic unchanged; fallback sounds respect looping and volume settings.
 
 ## File Structure
 ```
@@ -84,7 +91,7 @@ mars-webxr-demo/
 ## Future Enhancements
 - Collision detection with terrain
 - More detailed habitat interiors
-- Sound effects and ambient audio (now implemented with fallback - replace placeholder URLs with actual audio files for better quality)
+- Sound effects and ambient audio (now implemented with functional fallback - replace placeholder URLs with actual audio files for better quality)
 - Additional UI elements (mini-map, status displays)
 - Optimizations for lower-end devices
 - Additional planetary objects (asteroids, satellites)
