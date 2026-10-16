@@ -243,6 +243,7 @@
 
                 for (const [key, url] of Object.entries(soundUrls)) {
                     const audio = new Audio(url);
+                    audio.preload = 'auto';
                     if (key === 'marsWind' || key === 'ufoHum' || key === 'rocketEngine' || key === 'habitatHum') {
                         audio.loop = true;
                         audio.volume = 0.5;
@@ -250,6 +251,9 @@
                         audio.loop = false;
                         audio.volume = 0.7;
                     }
+                    audio.addEventListener('error', () => {
+                        console.error(`Failed to load audio file: ${url}`);
+                    });
                     this.sounds[key] = audio;
                 }
 
@@ -1102,6 +1106,7 @@ function computeTerrainHeight(x, z) {
                                 audioManager.play('uiClick');
                             }
                             try {
+                                await renderer.xr.setSession('immersive-vr');
                                 await renderer.xr.setReferenceSpaceType('local');
                                 const session = await renderer.xr.requestSession();
                                 isVRSession = true;
